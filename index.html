@@ -5,179 +5,625 @@
   <title>Playlist QR Tool</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    * { box-sizing: border-box; }
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0;
+    }
+    
     body {
-      font-family: Arial, sans-serif;
-      margin: 0; padding: 0;
-      background: #f9f9f9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
     }
-    header {
-      background: #333;
-      color: white;
+    
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    .glass-card {
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      margin-bottom: 20px;
+    }
+    
+    .header {
       text-align: center;
-      padding: 15px;
+      margin-bottom: 30px;
     }
-    .buttons {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin: 15px 0;
-      flex-wrap: wrap;
-    }
-    button {
-      padding: 10px 15px;
-      font-size: 16px;
-      border: none;
-      border-radius: 6px;
-      background: #007bff;
+    
+    .header h1 {
       color: white;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .header p {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 16px;
+    }
+    
+    .tab-buttons {
+      display: flex;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 4px;
+      margin-bottom: 30px;
+    }
+    
+    .tab-btn {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.7);
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 500;
       cursor: pointer;
+      transition: all 0.3s ease;
     }
-    button:hover {
-      background: #0056b3;
+    
+    .tab-btn.active {
+      background: rgba(255, 255, 255, 0.9);
+      color: #333;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
+    
     .page {
       display: none;
-      padding: 15px;
+      animation: fadeIn 0.3s ease;
     }
+    
     .page.active {
       display: block;
     }
-    img, video {
-      width: 100%;
-      max-width: 300px;
-      margin: 10px auto;
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .qr-container {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    
+    .qr-image {
+      width: 250px;
+      height: 250px;
+      border-radius: 20px;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      margin: 0 auto 20px;
       display: block;
-      border: 1px solid #ccc;
-      border-radius: 6px;
     }
-    .info-box {
-      background: #fff;
-      padding: 10px;
-      border-radius: 6px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      margin: 10px auto;
-      max-width: 300px;
-      text-align: left;
-      word-wrap: break-word;
+    
+    .video-container {
+      position: relative;
+      margin-bottom: 25px;
     }
-    .info-box pre {
+    
+    #video {
+      width: 100%;
+      height: 300px;
+      border-radius: 20px;
+      object-fit: cover;
+      background: rgba(0,0,0,0.1);
+    }
+    
+    .scan-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 200px;
+      height: 200px;
+      border: 3px solid rgba(255, 255, 255, 0.8);
+      border-radius: 20px;
+      pointer-events: none;
+    }
+    
+    .scan-overlay::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      border: 3px solid transparent;
+      border-radius: 20px;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffa726);
+      background-size: 300% 300%;
+      animation: scanBorder 2s ease-in-out infinite;
+      z-index: -1;
+    }
+    
+    @keyframes scanBorder {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    
+    .info-card {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .info-card h3 {
+      color: #333;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    
+    .info-label {
+      color: #666;
+      font-weight: 500;
+    }
+    
+    .info-value {
+      color: #333;
+      font-weight: 600;
+      text-align: right;
+      max-width: 200px;
+      word-break: break-all;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .status-scanning {
+      background: #ffa726;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    .status-success {
+      background: #4caf50;
+    }
+    
+    .status-error {
+      background: #f44336;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .scan-result {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 15px;
+      padding: 20px;
+      margin-top: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .scan-result pre {
       white-space: pre-wrap;
       word-wrap: break-word;
+      color: #333;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    
+    .generate-btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 15px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      margin-bottom: 20px;
+    }
+    
+    .generate-btn:hover {
+      transform: translateY(-2px);
+    }
+    
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
 
-<header>🎵 Playlist QR Tool</header>
-
-<div class="buttons">
-  <button onclick="showPage('generator')">🔁 Generate QR</button>
-  <button onclick="showPage('scanner')">📷 Scan QR</button>
-</div>
-
-<!-- Generator Page -->
-<div id="generator" class="page active">
-  <h3>🎶 Generated Playlist QR</h3>
-  <img id="qrImage" alt="QR Code">
-  <div class="info-box" id="playlistInfo"></div>
-</div>
-
-<!-- Scanner Page -->
-<div id="scanner" class="page">
-  <h3>📷 QR Scanner</h3>
-  <video id="video" autoplay playsinline></video>
-  <div class="info-box">
-    <strong>Base64 QR Data:</strong>
-    <pre id="base64Out">Waiting for QR...</pre>
+<div class="container">
+  <div class="glass-card">
+    <div class="header">
+      <h1>🎵 Playlist QR</h1>
+      <p>Generate and scan music playlists</p>
+    </div>
+    
+    <div class="tab-buttons">
+      <button class="tab-btn active" onclick="showPage('generator')">Generate</button>
+      <button class="tab-btn" onclick="showPage('scanner')">Scan</button>
+    </div>
+    
+    <!-- Generator Page -->
+    <div id="generator" class="page active">
+      <button class="generate-btn" onclick="generateNewPlaylist()">🔄 Generate New Playlist</button>
+      
+      <div class="qr-container">
+        <img id="qrImage" class="qr-image" alt="QR Code">
+      </div>
+      
+      <div class="info-card">
+        <h3>📊 Playlist Details</h3>
+        <div id="playlistInfo"></div>
+      </div>
+    </div>
+    
+    <!-- Scanner Page -->
+    <div id="scanner" class="page">
+      <div class="video-container">
+        <video id="video" autoplay playsinline muted></video>
+        <div class="scan-overlay"></div>
+      </div>
+      
+      <div class="info-card">
+        <h3><span id="scanStatus" class="status-indicator status-scanning"></span>Scanner Status</h3>
+        <div class="info-row">
+          <span class="info-label">Status</span>
+          <span class="info-value" id="scanStatusText">Initializing camera...</span>
+        </div>
+      </div>
+      
+      <div id="scanResultContainer" class="scan-result" style="display: none;">
+        <h3>🎶 Scanned Playlist</h3>
+        <div id="scanResult"></div>
+      </div>
+    </div>
   </div>
-  <div class="info-box">
-    <strong>Extracted Playlist:</strong>
-    <pre id="scanResult">Waiting...</pre>
-  </div>
 </div>
 
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
 <script>
-  function showPage(id) {
-    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-    document.getElementById(id).classList.add("active");
-    if (id === 'scanner') startScanner();
-  }
-
-  // --- QR Generator Logic ---
-  function generateRandomIds(count) {
-    const ids = new Set();
-    while (ids.size < count) {
-      const id = Math.floor(100000 + Math.random() * 900000);
-      ids.add(id.toString());
+  // Optimized playlist generation with better algorithms
+  class PlaylistGenerator {
+    constructor() {
+      this.cache = new Map();
     }
-    return Array.from(ids);
-  }
-
-  const playlistName = "myplaylist";
-  const aids = generateRandomIds(100);
-  const rawData = `pl=${playlistName}&a=${aids.join("-")}`;
-  const compressed = LZString.compressToEncodedURIComponent(rawData);
-  const qrURL = `https://my-qr-api.vercel.app/api/qr?data=${compressed}`;
-
-  document.getElementById("qrImage").src = qrURL;
-  document.getElementById("playlistInfo").innerHTML = `
-    <strong>Playlist:</strong> ${playlistName}<br>
-    <strong>Total AIDs:</strong> ${aids.length}<br>
-    <strong>Compressed:</strong><br><small>${compressed.slice(0, 120)}...</small>
-  `;
-
-  // --- QR Scanner Logic ---
-  async function startScanner() {
-    const video = document.getElementById("video");
-    const base64Out = document.getElementById("base64Out");
-    const resultBox = document.getElementById("scanResult");
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      resultBox.innerText = "Camera not supported";
-      return;
+    
+    // Optimized random ID generation using crypto API for better randomness
+    generateSecureIds(count) {
+      const ids = new Set();
+      const array = new Uint32Array(count * 2); // Generate extra to handle duplicates
+      crypto.getRandomValues(array);
+      
+      for (let i = 0; i < array.length && ids.size < count; i++) {
+        const id = (array[i] % 900000) + 100000; // Ensure 6-digit numbers
+        ids.add(id.toString());
+      }
+      
+      return Array.from(ids).slice(0, count);
     }
-
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-    video.srcObject = stream;
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    const scanLoop = () => {
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, canvas.width, canvas.height);
-
-        if (code) {
-          const raw = code.data;
-          base64Out.innerText = raw;
-
-          try {
-            const decompressed = LZString.decompressFromEncodedURIComponent(raw);
-            const [pl, a] = decompressed.split("&");
-            const name = pl.split("=")[1];
-            const ids = a.split("=")[1].split("-");
-            resultBox.innerText = `Playlist: ${name}\nTotal AIDs: ${ids.length}\n\nAIDs:\n${ids.join(", ")}`;
-
-            video.srcObject.getTracks().forEach(track => track.stop()); // stop camera
-            return;
-          } catch {
-            resultBox.innerText = "❌ Failed to decode QR";
+    
+    // Optimized compression with better encoding
+    compressPlaylistData(name, aids) {
+      const timestamp = Date.now();
+      const checksum = this.calculateChecksum(aids);
+      const rawData = `pl=${name}&t=${timestamp}&c=${checksum}&a=${aids.join("-")}`;
+      
+      // Try different compression levels
+      const compressed = LZString.compressToEncodedURIComponent(rawData);
+      const base64Compressed = LZString.compressToBase64(rawData);
+      
+      // Use the more efficient compression
+      return compressed.length <= base64Compressed.length ? compressed : base64Compressed;
+    }
+    
+    // Simple checksum for data integrity
+    calculateChecksum(aids) {
+      return aids.reduce((sum, id) => sum + parseInt(id), 0) % 10000;
+    }
+    
+    generatePlaylist(name = "MyPlaylist", count = 100) {
+      const cacheKey = `${name}-${count}`;
+      if (this.cache.has(cacheKey)) {
+        return this.cache.get(cacheKey);
+      }
+      
+      const aids = this.generateSecureIds(count);
+      const compressed = this.compressPlaylistData(name, aids);
+      
+      const result = { name, aids, compressed, count };
+      this.cache.set(cacheKey, result);
+      return result;
+    }
+  }
+  
+  // Enhanced QR Scanner with better processing
+  class QRScanner {
+    constructor() {
+      this.isScanning = false;
+      this.stream = null;
+      this.canvas = document.createElement('canvas');
+      this.ctx = this.canvas.getContext('2d');
+      this.scanAttempts = 0;
+      this.maxAttempts = 1000;
+      this.scanInterval = null;
+    }
+    
+    async startScanning() {
+      const video = document.getElementById('video');
+      const statusEl = document.getElementById('scanStatus');
+      const statusTextEl = document.getElementById('scanStatusText');
+      
+      try {
+        statusEl.className = 'status-indicator status-scanning';
+        statusTextEl.textContent = 'Starting camera...';
+        
+        // Enhanced camera constraints for better QR detection
+        const constraints = {
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
+            frameRate: { ideal: 30, min: 15 }
           }
+        };
+        
+        this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = this.stream;
+        
+        video.onloadedmetadata = () => {
+          this.isScanning = true;
+          statusTextEl.textContent = 'Scanning for QR codes...';
+          this.scanLoop();
+        };
+        
+      } catch (error) {
+        statusEl.className = 'status-indicator status-error';
+        statusTextEl.textContent = 'Camera access denied';
+        console.error('Camera error:', error);
+      }
+    }
+    
+    scanLoop() {
+      if (!this.isScanning) return;
+      
+      const video = document.getElementById('video');
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        this.processFrame(video);
+      }
+      
+      this.scanAttempts++;
+      if (this.scanAttempts < this.maxAttempts) {
+        requestAnimationFrame(() => this.scanLoop());
+      }
+    }
+    
+    processFrame(video) {
+      // Optimize canvas size for better performance
+      const scale = Math.min(800 / video.videoWidth, 600 / video.videoHeight);
+      this.canvas.width = video.videoWidth * scale;
+      this.canvas.height = video.videoHeight * scale;
+      
+      this.ctx.drawImage(video, 0, 0, this.canvas.width, this.canvas.height);
+      
+      // Enhanced image preprocessing for better QR detection
+      const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+      this.preprocessImage(imageData);
+      
+      const code = jsQR(imageData.data, this.canvas.width, this.canvas.height, {
+        inversionAttempts: "dontInvert"
+      });
+      
+      if (code) {
+        this.handleQRDetection(code.data);
+      }
+    }
+    
+    // Image preprocessing for better QR detection
+    preprocessImage(imageData) {
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        // Convert to grayscale with optimized weights
+        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        
+        // Apply contrast enhancement
+        const enhanced = gray < 128 ? Math.max(0, gray - 30) : Math.min(255, gray + 30);
+        
+        data[i] = data[i + 1] = data[i + 2] = enhanced;
+      }
+    }
+    
+    handleQRDetection(qrData) {
+      const statusEl = document.getElementById('scanStatus');
+      const statusTextEl = document.getElementById('scanStatusText');
+      const resultContainer = document.getElementById('scanResultContainer');
+      const resultEl = document.getElementById('scanResult');
+      
+      try {
+        let decompressed;
+        
+        // Try different decompression methods
+        try {
+          decompressed = LZString.decompressFromEncodedURIComponent(qrData);
+        } catch {
+          decompressed = LZString.decompressFromBase64(qrData);
+        }
+        
+        if (!decompressed) {
+          throw new Error('Failed to decompress QR data');
+        }
+        
+        const playlist = this.parsePlaylistData(decompressed);
+        this.displayPlaylistInfo(playlist, resultEl);
+        
+        statusEl.className = 'status-indicator status-success';
+        statusTextEl.textContent = 'QR code scanned successfully!';
+        resultContainer.style.display = 'block';
+        
+        this.stopScanning();
+        
+      } catch (error) {
+        statusEl.className = 'status-indicator status-error';
+        statusTextEl.textContent = 'Invalid QR code format';
+        console.error('QR parsing error:', error);
+      }
+    }
+    
+    parsePlaylistData(data) {
+      const params = new URLSearchParams(data.replace(/&/g, '&'));
+      const name = params.get('pl') || 'Unknown Playlist';
+      const timestamp = params.get('t') || 'Unknown';
+      const checksum = params.get('c') || 'Unknown';
+      const aids = params.get('a') ? params.get('a').split('-') : [];
+      
+      // Verify checksum if available
+      if (checksum !== 'Unknown') {
+        const calculatedChecksum = aids.reduce((sum, id) => sum + parseInt(id), 0) % 10000;
+        if (parseInt(checksum) !== calculatedChecksum) {
+          throw new Error('Data integrity check failed');
         }
       }
-      requestAnimationFrame(scanLoop);
-    };
-
-    scanLoop();
+      
+      return { name, aids, timestamp, checksum, count: aids.length };
+    }
+    
+    displayPlaylistInfo(playlist, container) {
+      const date = playlist.timestamp !== 'Unknown' ? 
+        new Date(parseInt(playlist.timestamp)).toLocaleString() : 'Unknown';
+      
+      container.innerHTML = `
+        <div class="info-row">
+          <span class="info-label">Name</span>
+          <span class="info-value">${playlist.name}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Tracks</span>
+          <span class="info-value">${playlist.count}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Created</span>
+          <span class="info-value">${date}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Checksum</span>
+          <span class="info-value">${playlist.checksum}</span>
+        </div>
+        <div style="margin-top: 15px;">
+          <strong>Track IDs:</strong>
+          <pre style="margin-top: 10px; font-size: 12px;">${playlist.aids.join(', ')}</pre>
+        </div>
+      `;
+    }
+    
+    stopScanning() {
+      this.isScanning = false;
+      if (this.stream) {
+        this.stream.getTracks().forEach(track => track.stop());
+        this.stream = null;
+      }
+    }
   }
+  
+  // Global instances
+  const generator = new PlaylistGenerator();
+  const scanner = new QRScanner();
+  
+  // UI Functions
+  function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    document.getElementById(pageId).classList.add('active');
+    event.target.classList.add('active');
+    
+    if (pageId === 'scanner') {
+      document.getElementById('scanResultContainer').style.display = 'none';
+      scanner.startScanning();
+    } else {
+      scanner.stopScanning();
+    }
+  }
+  
+  function generateNewPlaylist() {
+    const btn = document.querySelector('.generate-btn');
+    btn.classList.add('loading');
+    btn.textContent = '⏳ Generating...';
+    
+    setTimeout(() => {
+      const playlistNames = ['Chill Vibes', 'Workout Mix', 'Road Trip', 'Study Focus', 'Party Hits'];
+      const randomName = playlistNames[Math.floor(Math.random() * playlistNames.length)];
+      const playlist = generator.generatePlaylist(randomName, 100);
+      
+      updateGeneratorDisplay(playlist);
+      
+      btn.classList.remove('loading');
+      btn.textContent = '🔄 Generate New Playlist';
+    }, 500);
+  }
+  
+  function updateGeneratorDisplay(playlist) {
+    const qrURL = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(playlist.compressed)}`;
+    document.getElementById('qrImage').src = qrURL;
+    
+    document.getElementById('playlistInfo').innerHTML = `
+      <div class="info-row">
+        <span class="info-label">Name</span>
+        <span class="info-value">${playlist.name}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Tracks</span>
+        <span class="info-value">${playlist.count}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Data Size</span>
+        <span class="info-value">${playlist.compressed.length} chars</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Compression</span>
+        <span class="info-value">${Math.round((1 - playlist.compressed.length / (playlist.name.length + playlist.aids.join('').length)) * 100)}%</span>
+      </div>
+    `;
+  }
+  
+  // Initialize with first playlist
+  generateNewPlaylist();
 </script>
+
 </body>
 </html>
