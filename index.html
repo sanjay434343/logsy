@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Playlist QR Tool</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; }
+    .page { display: none; padding: 20px; text-align: center; }
+    .page.active { display: block; }
+    button { margin: 10px; padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    img { margin-top: 20px; border: 1px solid #ccc; width: 280px; height: 280px; }
+    video { width: 300px; height: 300px; border: 1px solid #ccc; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <!-- Navigation Buttons -->
+  <div style="text-align:center; margin-top:20px;">
+    <button onclick="showPage('generator')">🔁 Generator</button>
+    <button onclick="showPage('scanner')">📷 Scanner</button>
+  </div>
+
+  <!-- QR Generator Page -->
+  <div id="generator" class="page active">
+    <h2>🎵 Playlist QR Generator</h2>
+    <div id="qrArea">
+      <img id="qrImage" alt="QR Code">
+      <div id="playlistInfo"></div>
+    </div>
+  </div>
+
+  <!-- QR Scanner Page -->
+  <div id="scanner" class="page">
+    <h2>📷 Scan Playlist QR</h2>
+    <video id="video" autoplay></video>
+    <div id="scanResult" style="margin-top: 20px; font-weight: bold;"></div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script>
+    const playlistName = "myplaylist";
+
+    function generateRandomIds(count) {
+      const ids = new Set();
+      while (ids.size < count) {
+        const id = Math.floor(100000 + Math.random() * 900000);
+        ids.add(id.toString());
+      }
+      return Array.from(ids);
+    }
+
+    function showPage(pageId) {
+      document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+      document.getElementById(pageId).classList.add("active");
+      if (pageId === "scanner") startScanner();
+    }
+
+    // --- QR GENERATOR ---
+    const aids = generateRandomIds(100);
+    const rawData = `pl=${playlistName}&a=${aids.join("-")}`;
+    const compressed = LZString.compressToEncodedURIComponent(rawData);
+    const qrURL = `https://my-qr-api.vercel.app/api/qr?data=${compressed}`;
+
+    document.getElementById("qrImage").src = qrURL;
+    document.getElementById("playlistInfo").innerText = `Playlist: ${playlistName}\nAIDs: ${aids.length} items`;
+
+    // --- QR SCANNER ---
+    async function startScanner() {
+      const video = document.getElementById("video");
+      const resultBox = document.getElementById("scanResult");
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        resultBox.innerText = "Camera not supported";
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      video.srcObject = stream;
+
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      const scanLoop = () => {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+          if (code) {
+            try {
+              const decompressed = LZString.decompressFromEncodedURIComponent(code.data);
+              const [pl, a] = decompressed.split("&");
+              const name = pl.split("=")[1];
+              const aids = a.split("=")[1].split("-");
+
+              resultBox.innerText = `✅ Playlist: ${name}\n🎵 Total AIDs: ${aids.length}`;
+              video.srcObject.getTracks().forEach(track => track.stop()); // stop camera
+              return;
+            } catch (err) {
+              resultBox.innerText = "❌ Failed to decode QR data.";
+            }
+          }
+        }
+        requestAnimationFrame(scanLoop);
+      };
+
+      scanLoop();
+    }
+  </script>
+</body>
+</html>
