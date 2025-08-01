@@ -373,7 +373,7 @@
     }
   }
   
-  // Enhanced QR Scanner with better processing
+  // Advanced QR Scanner with Google Lens-like capabilities
   class QRScanner {
     constructor() {
       this.isScanning = false;
@@ -381,8 +381,12 @@
       this.canvas = document.createElement('canvas');
       this.ctx = this.canvas.getContext('2d');
       this.scanAttempts = 0;
-      this.maxAttempts = 1000;
+      this.maxAttempts = 10000;
       this.scanInterval = null;
+      this.frameBuffer = [];
+      this.bufferSize = 5;
+      this.lastScanTime = 0;
+      this.scanThrottle = 50; // ms
     }
     
     async startScanning() {
@@ -394,24 +398,30 @@
         statusEl.className = 'status-indicator status-scanning';
         statusTextEl.textContent = 'Starting camera...';
         
-        // Enhanced camera constraints for better QR detection
+        // Advanced camera constraints for optimal QR detection
         const constraints = {
           video: {
             facingMode: 'environment',
-            width: { ideal: 1280, min: 640 },
-            height: { ideal: 720, min: 480 },
-            frameRate: { ideal: 30, min: 15 }
+            width: { ideal: 1920, min: 1280 },
+            height: { ideal: 1080, min: 720 },
+            frameRate: { ideal: 60, min: 30 },
+            focusMode: 'continuous',
+            exposureMode: 'continuous',
+            whiteBalanceMode: 'continuous'
           }
         };
         
         this.stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = this.stream;
         
-        video.onloadedmetadata = () => {
-          this.isScanning = true;
-          statusTextEl.textContent = 'Scanning for QR codes...';
-          this.scanLoop();
-        };
+        // Wait for video metadata and start scanning
+        await new Promise(resolve => {
+          video.onloadedmetadata = resolve;
+        });
+        
+        this.isScanning = true;
+        statusTextEl.textContent = 'AI scanning active...';
+        this.scanLoop();
         
       } catch (error) {
         statusEl.className = 'status-indicator status-error';
@@ -423,9 +433,13 @@
     scanLoop() {
       if (!this.isScanning) return;
       
-      const video = document.getElementById('video');
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        this.processFrame(video);
+      const now = performance.now();
+      if (now - this.lastScanTime >= this.scanThrottle) {
+        const video = document.getElementById('video');
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          this.processFrameAdvanced(video);
+        }
+        this.lastScanTime = now;
       }
       
       this.scanAttempts++;
@@ -434,38 +448,276 @@
       }
     }
     
-    processFrame(video) {
-      // Optimize canvas size for better performance
-      const scale = Math.min(800 / video.videoWidth, 600 / video.videoHeight);
-      this.canvas.width = video.videoWidth * scale;
-      this.canvas.height = video.videoHeight * scale;
+    processFrameAdvanced(video) {
+      // High-resolution processing
+      this.canvas.width = video.videoWidth;
+      this.canvas.height = video.videoHeight;
       
       this.ctx.drawImage(video, 0, 0, this.canvas.width, this.canvas.height);
+      const originalImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
       
-      // Enhanced image preprocessing for better QR detection
-      const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-      this.preprocessImage(imageData);
+      // Multiple processing approaches like Google Lens
+      const approaches = [
+        () => this.processWithAdaptiveThreshold(originalImageData),
+        () => this.processWithContrastEnhancement(originalImageData),
+        () => this.processWithEdgeDetection(originalImageData),
+        () => this.processWithGaussianBlur(originalImageData),
+        () => this.processWithHistogramEqualization(originalImageData)
+      ];
       
-      const code = jsQR(imageData.data, this.canvas.width, this.canvas.height, {
-        inversionAttempts: "dontInvert"
-      });
+      // Try each approach
+      for (const approach of approaches) {
+        try {
+          const processedData = approach();
+          const code = jsQR(processedData.data, processedData.width, processedData.height, {
+            inversionAttempts: "attemptBoth"
+          });
+          
+          if (code && this.validateQRData(code.data)) {
+            this.handleQRDetection(code.data);
+            return;
+          }
+        } catch (e) {
+          continue; // Try next approach
+        }
+      }
       
-      if (code) {
-        this.handleQRDetection(code.data);
+      // Multi-scale detection for different QR sizes
+      this.multiScaleDetection(originalImageData);
+    }
+    
+    // Adaptive threshold processing
+    processWithAdaptiveThreshold(imageData) {
+      const data = new Uint8ClampedArray(imageData.data);
+      const width = imageData.width;
+      const height = imageData.height;
+      
+      // Convert to grayscale
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        data[i] = data[i + 1] = data[i + 2] = gray;
+      }
+      
+      // Adaptive thresholding
+      const blockSize = 15;
+      const C = 10;
+      
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          const mean = this.calculateLocalMean(data, x, y, width, height, blockSize);
+          const threshold = mean - C;
+          const value = data[idx] > threshold ? 255 : 0;
+          data[idx] = data[idx + 1] = data[idx + 2] = value;
+        }
+      }
+      
+      return new ImageData(data, width, height);
+    }
+    
+    // Contrast enhancement
+    processWithContrastEnhancement(imageData) {
+      const data = new Uint8ClampedArray(imageData.data);
+      
+      for (let i = 0; i < data.length; i += 4) {
+        // Convert to grayscale
+        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        
+        // High contrast enhancement
+        const enhanced = gray < 127 ? Math.max(0, gray - 50) : Math.min(255, gray + 50);
+        
+        data[i] = data[i + 1] = data[i + 2] = enhanced;
+      }
+      
+      return new ImageData(data, imageData.width, imageData.height);
+    }
+    
+    // Edge detection processing
+    processWithEdgeDetection(imageData) {
+      const data = new Uint8ClampedArray(imageData.data);
+      const width = imageData.width;
+      const height = imageData.height;
+      const output = new Uint8ClampedArray(data.length);
+      
+      // Sobel edge detection
+      const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+      const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+      
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          let pixelX = 0;
+          let pixelY = 0;
+          
+          for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+              const idx = ((y + i) * width + (x + j)) * 4;
+              const gray = Math.round(0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]);
+              pixelX += gray * sobelX[(i + 1) * 3 + (j + 1)];
+              pixelY += gray * sobelY[(i + 1) * 3 + (j + 1)];
+            }
+          }
+          
+          const magnitude = Math.min(255, Math.sqrt(pixelX * pixelX + pixelY * pixelY));
+          const idx = (y * width + x) * 4;
+          output[idx] = output[idx + 1] = output[idx + 2] = magnitude;
+          output[idx + 3] = 255;
+        }
+      }
+      
+      return new ImageData(output, width, height);
+    }
+    
+    // Gaussian blur for noise reduction
+    processWithGaussianBlur(imageData) {
+      const data = new Uint8ClampedArray(imageData.data);
+      const width = imageData.width;
+      const height = imageData.height;
+      
+      // Simple box blur approximation
+      const radius = 1;
+      const kernel = [];
+      const kernelSize = (radius * 2) + 1;
+      
+      for (let i = 0; i < kernelSize; i++) {
+        kernel[i] = [];
+        for (let j = 0; j < kernelSize; j++) {
+          kernel[i][j] = 1 / (kernelSize * kernelSize);
+        }
+      }
+      
+      const output = new Uint8ClampedArray(data.length);
+      
+      for (let y = radius; y < height - radius; y++) {
+        for (let x = radius; x < width - radius; x++) {
+          let r = 0, g = 0, b = 0;
+          
+          for (let ky = -radius; ky <= radius; ky++) {
+            for (let kx = -radius; kx <= radius; kx++) {
+              const idx = ((y + ky) * width + (x + kx)) * 4;
+              const weight = kernel[ky + radius][kx + radius];
+              r += data[idx] * weight;
+              g += data[idx + 1] * weight;
+              b += data[idx + 2] * weight;
+            }
+          }
+          
+          const idx = (y * width + x) * 4;
+          const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+          output[idx] = output[idx + 1] = output[idx + 2] = gray;
+          output[idx + 3] = 255;
+        }
+      }
+      
+      return new ImageData(output, width, height);
+    }
+    
+    // Histogram equalization
+    processWithHistogramEqualization(imageData) {
+      const data = new Uint8ClampedArray(imageData.data);
+      const histogram = new Array(256).fill(0);
+      const totalPixels = imageData.width * imageData.height;
+      
+      // Calculate histogram
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        histogram[gray]++;
+      }
+      
+      // Calculate cumulative distribution
+      const cdf = new Array(256);
+      cdf[0] = histogram[0];
+      for (let i = 1; i < 256; i++) {
+        cdf[i] = cdf[i - 1] + histogram[i];
+      }
+      
+      // Normalize and apply equalization
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        const equalized = Math.round((cdf[gray] / totalPixels) * 255);
+        data[i] = data[i + 1] = data[i + 2] = equalized;
+      }
+      
+      return new ImageData(data, imageData.width, imageData.height);
+    }
+    
+    // Multi-scale detection for different QR sizes
+    multiScaleDetection(imageData) {
+      const scales = [0.5, 0.75, 1.0, 1.25, 1.5];
+      
+      for (const scale of scales) {
+        try {
+          const scaledWidth = Math.floor(imageData.width * scale);
+          const scaledHeight = Math.floor(imageData.height * scale);
+          
+          if (scaledWidth < 100 || scaledHeight < 100) continue;
+          
+          const tempCanvas = document.createElement('canvas');
+          const tempCtx = tempCanvas.getContext('2d');
+          tempCanvas.width = scaledWidth;
+          tempCanvas.height = scaledHeight;
+          
+          tempCtx.putImageData(imageData, 0, 0);
+          tempCtx.drawImage(tempCanvas, 0, 0, imageData.width, imageData.height, 0, 0, scaledWidth, scaledHeight);
+          
+          const scaledData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
+          const processedData = this.processWithAdaptiveThreshold(scaledData);
+          
+          const code = jsQR(processedData.data, processedData.width, processedData.height, {
+            inversionAttempts: "attemptBoth"
+          });
+          
+          if (code && this.validateQRData(code.data)) {
+            this.handleQRDetection(code.data);
+            return;
+          }
+        } catch (e) {
+          continue;
+        }
       }
     }
     
-    // Image preprocessing for better QR detection
-    preprocessImage(imageData) {
-      const data = imageData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        // Convert to grayscale with optimized weights
-        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+    calculateLocalMean(data, x, y, width, height, blockSize) {
+      let sum = 0;
+      let count = 0;
+      const halfBlock = Math.floor(blockSize / 2);
+      
+      for (let dy = -halfBlock; dy <= halfBlock; dy++) {
+        for (let dx = -halfBlock; dx <= halfBlock; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          
+          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+            const idx = (ny * width + nx) * 4;
+            sum += data[idx]; // Using red channel as grayscale
+            count++;
+          }
+        }
+      }
+      
+      return count > 0 ? sum / count : 0;
+    }
+    
+    validateQRData(qrData) {
+      // Validate if the QR data looks like our compressed playlist format
+      try {
+        // Check if it's a valid LZ-string compressed data
+        let decompressed;
+        try {
+          decompressed = LZString.decompressFromEncodedURIComponent(qrData);
+        } catch {
+          try {
+            decompressed = LZString.decompressFromBase64(qrData);
+          } catch {
+            return false;
+          }
+        }
         
-        // Apply contrast enhancement
-        const enhanced = gray < 128 ? Math.max(0, gray - 30) : Math.min(255, gray + 30);
+        if (!decompressed) return false;
         
-        data[i] = data[i + 1] = data[i + 2] = enhanced;
+        // Check if decompressed data has expected format
+        return decompressed.includes('pl=') && decompressed.includes('&a=');
+      } catch {
+        return false;
       }
     }
     
@@ -478,31 +730,117 @@
       try {
         let decompressed;
         
-        // Try different decompression methods
-        try {
-          decompressed = LZString.decompressFromEncodedURIComponent(qrData);
-        } catch {
-          decompressed = LZString.decompressFromBase64(qrData);
+        // Advanced decompression with multiple fallback methods
+        const decompressionMethods = [
+          () => LZString.decompressFromEncodedURIComponent(qrData),
+          () => LZString.decompressFromBase64(qrData),
+          () => LZString.decompressFromUTF16(qrData),
+          () => LZString.decompress(qrData),
+          () => decodeURIComponent(qrData), // Raw URL decode
+          () => atob(qrData), // Base64 decode
+          () => qrData // Raw data
+        ];
+        
+        for (const method of decompressionMethods) {
+          try {
+            decompressed = method();
+            if (decompressed && (decompressed.includes('pl=') || decompressed.includes('playlist'))) {
+              break;
+            }
+          } catch (e) {
+            continue;
+          }
         }
         
         if (!decompressed) {
           throw new Error('Failed to decompress QR data');
         }
         
-        const playlist = this.parsePlaylistData(decompressed);
+        // Try multiple parsing methods
+        let playlist;
+        try {
+          playlist = this.parsePlaylistData(decompressed);
+        } catch (e) {
+          // Try parsing as JSON
+          try {
+            const jsonData = JSON.parse(decompressed);
+            playlist = this.parseJSONPlaylist(jsonData);
+          } catch (e2) {
+            // Try parsing as simple string format
+            playlist = this.parseSimpleFormat(decompressed);
+          }
+        }
+        
         this.displayPlaylistInfo(playlist, resultEl);
         
         statusEl.className = 'status-indicator status-success';
         statusTextEl.textContent = 'QR code scanned successfully!';
         resultContainer.style.display = 'block';
         
+        // Add success feedback
+        this.showSuccessFeedback();
         this.stopScanning();
         
       } catch (error) {
         statusEl.className = 'status-indicator status-error';
-        statusTextEl.textContent = 'Invalid QR code format';
+        statusTextEl.textContent = `Scan error: ${error.message}`;
         console.error('QR parsing error:', error);
+        
+        // Show raw data for debugging
+        document.getElementById('scanResult').innerHTML = `
+          <div style="color: #f44336; margin-bottom: 15px;">
+            <strong>⚠️ Parsing Error</strong><br>
+            <small>${error.message}</small>
+          </div>
+          <div style="background: #f5f5f5; padding: 10px; border-radius: 8px;">
+            <strong>Raw QR Data:</strong>
+            <pre style="font-size: 11px; word-break: break-all;">${qrData}</pre>
+          </div>
+        `;
+        resultContainer.style.display = 'block';
       }
+    }
+    
+    parseJSONPlaylist(jsonData) {
+      return {
+        name: jsonData.name || jsonData.playlist || 'JSON Playlist',
+        aids: jsonData.aids || jsonData.tracks || jsonData.songs || [],
+        timestamp: jsonData.timestamp || jsonData.created || Date.now(),
+        checksum: jsonData.checksum || 'N/A',
+        count: (jsonData.aids || jsonData.tracks || jsonData.songs || []).length
+      };
+    }
+    
+    parseSimpleFormat(data) {
+      // Handle simple formats like "playlist:name,track1,track2,..."
+      const lines = data.split(/[\n,;]/);
+      const name = lines[0].includes(':') ? lines[0].split(':')[1] : 'Simple Playlist';
+      const aids = lines.slice(1).filter(item => item.trim().length > 0);
+      
+      return {
+        name: name.trim(),
+        aids: aids,
+        timestamp: Date.now(),
+        checksum: 'N/A',
+        count: aids.length
+      };
+    }
+    
+    showSuccessFeedback() {
+      // Visual success feedback
+      const overlay = document.querySelector('.scan-overlay');
+      overlay.style.borderColor = '#4caf50';
+      overlay.style.boxShadow = '0 0 20px rgba(76, 175, 80, 0.5)';
+      
+      // Haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
+      
+      setTimeout(() => {
+        overlay.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+        overlay.style.boxShadow = 'none';
+      }, 2000);
     }
     
     parsePlaylistData(data) {
@@ -598,7 +936,7 @@
   }
   
   function updateGeneratorDisplay(playlist) {
-    const qrURL = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(playlist.compressed)}`;
+    const qrURL = `https://my-qr-api.vercel.app/api/qr?data=${playlist.compressed}`;
     document.getElementById('qrImage').src = qrURL;
     
     document.getElementById('playlistInfo').innerHTML = `
