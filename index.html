@@ -3,112 +3,181 @@
 <head>
   <meta charset="UTF-8">
   <title>Playlist QR Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: sans-serif; margin: 0; padding: 0; }
-    .page { display: none; padding: 20px; text-align: center; }
-    .page.active { display: block; }
-    button { margin: 10px; padding: 10px 20px; font-size: 16px; cursor: pointer; }
-    img { margin-top: 20px; border: 1px solid #ccc; width: 280px; height: 280px; }
-    video { width: 300px; height: 300px; border: 1px solid #ccc; margin-top: 20px; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 0;
+      background: #f9f9f9;
+    }
+    header {
+      background: #333;
+      color: white;
+      text-align: center;
+      padding: 15px;
+    }
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .page {
+      display: none;
+      padding: 15px;
+    }
+    .page.active {
+      display: block;
+    }
+    img, video {
+      width: 100%;
+      max-width: 300px;
+      margin: 10px auto;
+      display: block;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .info-box {
+      background: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin: 10px auto;
+      max-width: 300px;
+      text-align: left;
+      word-wrap: break-word;
+    }
+    .info-box pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
   </style>
 </head>
 <body>
-  <!-- Navigation Buttons -->
-  <div style="text-align:center; margin-top:20px;">
-    <button onclick="showPage('generator')">🔁 Generator</button>
-    <button onclick="showPage('scanner')">📷 Scanner</button>
+
+<header>🎵 Playlist QR Tool</header>
+
+<div class="buttons">
+  <button onclick="showPage('generator')">🔁 Generate QR</button>
+  <button onclick="showPage('scanner')">📷 Scan QR</button>
+</div>
+
+<!-- Generator Page -->
+<div id="generator" class="page active">
+  <h3>🎶 Generated Playlist QR</h3>
+  <img id="qrImage" alt="QR Code">
+  <div class="info-box" id="playlistInfo"></div>
+</div>
+
+<!-- Scanner Page -->
+<div id="scanner" class="page">
+  <h3>📷 QR Scanner</h3>
+  <video id="video" autoplay playsinline></video>
+  <div class="info-box">
+    <strong>Base64 QR Data:</strong>
+    <pre id="base64Out">Waiting for QR...</pre>
   </div>
-
-  <!-- QR Generator Page -->
-  <div id="generator" class="page active">
-    <h2>🎵 Playlist QR Generator</h2>
-    <div id="qrArea">
-      <img id="qrImage" alt="QR Code">
-      <div id="playlistInfo"></div>
-    </div>
+  <div class="info-box">
+    <strong>Extracted Playlist:</strong>
+    <pre id="scanResult">Waiting...</pre>
   </div>
+</div>
 
-  <!-- QR Scanner Page -->
-  <div id="scanner" class="page">
-    <h2>📷 Scan Playlist QR</h2>
-    <video id="video" autoplay></video>
-    <div id="scanResult" style="margin-top: 20px; font-weight: bold;"></div>
-  </div>
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+  function showPage(id) {
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+    if (id === 'scanner') startScanner();
+  }
 
-  <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-  <script>
-    const playlistName = "myplaylist";
+  // --- QR Generator Logic ---
+  function generateRandomIds(count) {
+    const ids = new Set();
+    while (ids.size < count) {
+      const id = Math.floor(100000 + Math.random() * 900000);
+      ids.add(id.toString());
+    }
+    return Array.from(ids);
+  }
 
-    function generateRandomIds(count) {
-      const ids = new Set();
-      while (ids.size < count) {
-        const id = Math.floor(100000 + Math.random() * 900000);
-        ids.add(id.toString());
-      }
-      return Array.from(ids);
+  const playlistName = "myplaylist";
+  const aids = generateRandomIds(100);
+  const rawData = `pl=${playlistName}&a=${aids.join("-")}`;
+  const compressed = LZString.compressToEncodedURIComponent(rawData);
+  const qrURL = `https://my-qr-api.vercel.app/api/qr?data=${compressed}`;
+
+  document.getElementById("qrImage").src = qrURL;
+  document.getElementById("playlistInfo").innerHTML = `
+    <strong>Playlist:</strong> ${playlistName}<br>
+    <strong>Total AIDs:</strong> ${aids.length}<br>
+    <strong>Compressed:</strong><br><small>${compressed.slice(0, 120)}...</small>
+  `;
+
+  // --- QR Scanner Logic ---
+  async function startScanner() {
+    const video = document.getElementById("video");
+    const base64Out = document.getElementById("base64Out");
+    const resultBox = document.getElementById("scanResult");
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      resultBox.innerText = "Camera not supported";
+      return;
     }
 
-    function showPage(pageId) {
-      document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-      document.getElementById(pageId).classList.add("active");
-      if (pageId === "scanner") startScanner();
-    }
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    video.srcObject = stream;
 
-    // --- QR GENERATOR ---
-    const aids = generateRandomIds(100);
-    const rawData = `pl=${playlistName}&a=${aids.join("-")}`;
-    const compressed = LZString.compressToEncodedURIComponent(rawData);
-    const qrURL = `https://my-qr-api.vercel.app/api/qr?data=${compressed}`;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
 
-    document.getElementById("qrImage").src = qrURL;
-    document.getElementById("playlistInfo").innerText = `Playlist: ${playlistName}\nAIDs: ${aids.length} items`;
+    const scanLoop = () => {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
 
-    // --- QR SCANNER ---
-    async function startScanner() {
-      const video = document.getElementById("video");
-      const resultBox = document.getElementById("scanResult");
+        if (code) {
+          const raw = code.data;
+          base64Out.innerText = raw;
 
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        resultBox.innerText = "Camera not supported";
-        return;
-      }
+          try {
+            const decompressed = LZString.decompressFromEncodedURIComponent(raw);
+            const [pl, a] = decompressed.split("&");
+            const name = pl.split("=")[1];
+            const ids = a.split("=")[1].split("-");
+            resultBox.innerText = `Playlist: ${name}\nTotal AIDs: ${ids.length}\n\nAIDs:\n${ids.join(", ")}`;
 
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      video.srcObject = stream;
-
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-
-      const scanLoop = () => {
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(imageData.data, canvas.width, canvas.height);
-
-          if (code) {
-            try {
-              const decompressed = LZString.decompressFromEncodedURIComponent(code.data);
-              const [pl, a] = decompressed.split("&");
-              const name = pl.split("=")[1];
-              const aids = a.split("=")[1].split("-");
-
-              resultBox.innerText = `✅ Playlist: ${name}\n🎵 Total AIDs: ${aids.length}`;
-              video.srcObject.getTracks().forEach(track => track.stop()); // stop camera
-              return;
-            } catch (err) {
-              resultBox.innerText = "❌ Failed to decode QR data.";
-            }
+            video.srcObject.getTracks().forEach(track => track.stop()); // stop camera
+            return;
+          } catch {
+            resultBox.innerText = "❌ Failed to decode QR";
           }
         }
-        requestAnimationFrame(scanLoop);
-      };
+      }
+      requestAnimationFrame(scanLoop);
+    };
 
-      scanLoop();
-    }
-  </script>
+    scanLoop();
+  }
+</script>
 </body>
 </html>
