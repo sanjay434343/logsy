@@ -1,0 +1,3 @@
+  "address": "1f378793744ce6ac20fdd1982e7efcd33a96856d",
+  "message": "Wallet created successfully",
+  "public_key": "3143e8c34c0803f0273677db0b2e05845940f61a6bce139583bebb6b07009153d8206b24b2e848451d6ee208b8133fd06fa72348c70cea308121f4fa1651d8e6"
